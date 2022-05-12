@@ -6,8 +6,15 @@ namespace Atomatis\OFM\Adapter;
 
 use Atomatis\OFM\ReflectionHelper;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
+use Symfony\Component\PropertyInfo\Extractor\SerializerExtractor;
+use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
 use Symfony\Component\Serializer\Encoder\YamlEncoder;
+use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
+use Symfony\Component\Serializer\Mapping\Loader\AnnotationLoader;
+use Symfony\Component\Serializer\Mapping\Loader\LoaderChain;
+use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
+use Symfony\Component\Serializer\Normalizer\UnwrappingDenormalizer;
 use Symfony\Component\Serializer\Serializer;
 use Symfony\Component\Yaml\Yaml;
 
@@ -19,8 +26,21 @@ final class YamlAdapter implements AdapterInterface
 
     public function __construct()
     {
-        $this->normalizer = new ObjectNormalizer(propertyTypeExtractor: new ReflectionExtractor());
-        $this->serializer = new Serializer([$this->normalizer], [new YamlEncoder()]);
+        $unwrapping = new UnwrappingDenormalizer();
+        $arrayNormalizer = new ArrayDenormalizer();
+        $reflectionExtractor = new ReflectionExtractor();
+        $propertyInfoExtractor = new PropertyInfoExtractor(
+            listExtractors: [
+                new SerializerExtractor(new ClassMetadataFactory(new LoaderChain([new AnnotationLoader()]))),
+                $reflectionExtractor,
+            ],
+            typeExtractors: [$reflectionExtractor],
+            accessExtractors: [$reflectionExtractor],
+            initializableExtractors: [$reflectionExtractor]
+        );
+
+        $this->normalizer = new ObjectNormalizer(propertyTypeExtractor: $propertyInfoExtractor);
+        $this->serializer = new Serializer([$unwrapping, $arrayNormalizer, $this->normalizer], [new YamlEncoder()]);
     }
 
     public function hydrate(object $entityObject, string $path): ?object
