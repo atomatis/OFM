@@ -8,6 +8,7 @@ use Atomatis\OFM\EntityManager;
 use Atomatis\OFM\Registry;
 use Atomatis\OFM\RegistryConfiguration;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Yaml\Yaml;
 use Tests\Fixtures\Entity\YamlMock;
 
 /** @author Alexandre Tomatis <alexandre.tomatis@gmail.com> */
@@ -28,6 +29,6 @@ final class FlushFileTest extends TestCase
         $yamlMock->setSimpleField('modified field');
         $entityManager->flush($yamlMock);
 
-        self::assertEquals(file_get_contents(__DIR__.'/Fixtures/assets/flushed_mock.yaml'), file_get_contents($path));
+        self::assertEquals(Yaml::parseFile(__DIR__.'/Fixtures/assets/flushed_mock.yaml'), Yaml::parseFile($path));
     }
 }

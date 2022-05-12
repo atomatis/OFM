@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Atomatis\OFM\Adapter;
 
+use Atomatis\OFM\Converter\NameConverter;
+use Atomatis\OFM\Converter\TypeConverter;
 use Atomatis\OFM\ReflectionHelper;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
 use Symfony\Component\PropertyInfo\Extractor\SerializerExtractor;
@@ -40,37 +42,40 @@ final class YamlAdapter implements AdapterInterface
         );
 
         $this->normalizer = new ObjectNormalizer(propertyTypeExtractor: $propertyInfoExtractor);
-        $this->serializer = new Serializer([$unwrapping, $arrayNormalizer, $this->normalizer], [new YamlEncoder()]);
+        $this->serializer = new Serializer([$unwrapping, $arrayNormalizer, $this->normalizer], [new YamlEncoder(
+            defaultContext: [YamlEncoder::YAML_INLINE => 10]
+        )]);
     }
 
     public function hydrate(object $entityObject, string $path): ?object
     {
         $reflection = new \ReflectionClass($entityObject);
-        $entityObject = $this->serializer->deserialize(file_get_contents($path), get_class($entityObject), YamlEncoder::FORMAT);
+        $data = $this->serializer->decode(file_get_contents($path), 'yaml');
 
-        foreach (ReflectionHelper::getEntityParameters($reflection) as $name => $parameter) {
+        foreach (ReflectionHelper::getEntityParameters($reflection) as $property => $parameter) {
+            if (null !== $parameter->getName()) {
+                $data = NameConverter::convertFromData($data, $property, $parameter);
+            }
+
             if (null !== $parameter->getType()) {
-                $getter = 'get'.$name;
-                $setter = 'set'.$name;
-                $values = [];
-
-                foreach ($entityObject->$getter() as $value) {
-                    $values[] = $this->normalizer->denormalize($value, $parameter->getType());
-                }
-
-                $entityObject->$setter($values);
+                $data = TypeConverter::convertFromData($data, $property, $parameter);
             }
         }
 
-        return $entityObject;
+        return $this->serializer->denormalize($data, get_class($entityObject), YamlEncoder::FORMAT);
     }
 
     public function save(object $entityObject, string $path): void
     {
-        $yaml = $this->serializer->serialize($entityObject, YamlEncoder::FORMAT);
-        // Yaml encode/decode for better format.
-        // (yes, better is possible, i know).
-        $yaml = Yaml::parse($yaml);
-        file_put_contents($path, Yaml::dump($yaml));
+        $reflection = new \ReflectionClass($entityObject);
+        $data = $this->serializer->normalize($entityObject);
+
+        foreach (ReflectionHelper::getEntityParameters($reflection) as $property => $parameter) {
+            if (null !== $parameter->getName()) {
+                $data = NameConverter::convertFromObject($data, $property, $parameter);
+            }
+        }
+
+        file_put_contents($path, $this->serializer->encode($data, YamlEncoder::FORMAT));
     }
 }

@@ -1,8 +1,12 @@
 simpleField: 'modified field'
+real-name: 'a text value2'
 arrayField:
     - value1
     - value2
 objectField:
     property1: 'a text value'
-    property2: [value1, value2]
-    property3: { property1: 'a text value' }
+    property2:
+        - value1
+        - value2
+    property3:
+        property1: 'a text value'

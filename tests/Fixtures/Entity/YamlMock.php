@@ -13,6 +13,9 @@ final class YamlMock
     #[OFM\Parameter]
     private string $simpleField;
 
+    #[OFM\Parameter(name: ('real-name'))]
+    private string $renamedField;
+
     #[OFM\Parameter]
     private array $arrayField;
 
@@ -27,6 +30,18 @@ final class YamlMock
     public function setSimpleField(string $simpleField): self
     {
         $this->simpleField = $simpleField;
+
+        return $this;
+    }
+
+    public function getRenamedField(): string
+    {
+        return $this->renamedField;
+    }
+
+    public function setRenamedField(string $renamedField): self
+    {
+        $this->renamedField = $renamedField;
 
         return $this;
     }
